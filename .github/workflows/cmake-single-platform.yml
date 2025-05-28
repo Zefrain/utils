@@ -40,12 +40,8 @@ jobs:
       #  # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       #  run: ctest -C ${{env.BUILD_TYPE}}
 
-      - name: Upload to Release Action
-        # You may pin to the exact commit or the version.
-        # uses: Shopify/upload-to-release@c77c9b3e5d288adaef98a7007bf92340ec6ce03b
-        uses: Shopify/upload-to-release@v2.0.0
+      - name: Create Release
+        uses: ncipollo/release-action@v1.14.0
         with:
-          # Artifact name
-          name: libutils.a
-          path: ${{github.workspace}}/build/lib/libutils.a
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          artifact: ${{github.workspace}}/build/lib/libutils.a
+          token: ${{ secrets.GITHUB_TOKEN }}
