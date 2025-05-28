@@ -99,7 +99,7 @@ function git_handle_push() {
     git tag -f latest v$netx_version_no &&
     git push origin v$netx_version_no &&
     git push origin latest &&
-    git tag --sort=-v:refname | tail -n +${{REMAIN_VERSION}} | xargs -r -I {} git push origin --delete {}
+    git tag --sort=-v:refname | tail -n +${REMAIN_VERSION} | xargs -r -I {} git push origin --delete {}
 }
 
 handle_input() {
