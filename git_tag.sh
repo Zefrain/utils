@@ -6,7 +6,8 @@ ProductName=utils
 Product_version_key="TheLibVersion"
 REPO_PFEX=zefrain/${ProductName}
 VersionFile=VERSION
-readonly REMAIN_VERSION=3 # 保留最新的版本数
+readonly REMAIN_VERSION=3    # 保留最新的版本数
+declare RELEASE_CAN_DELETE=1 # 是否可以删除旧版本的 tag 和 release
 
 CURRENT_VERSION=$(grep ${Product_version_key} $VersionFile | awk -F '"' '{print $2}' | sed 's/\"//g')
 
@@ -67,7 +68,13 @@ function install_dependencies() {
 function setup_gh() {
   if ! command -v gh &>/dev/null; then
     echo "gh CLI is not installed. Please install it from https://cli.github.com/."
-    exit 1
+    install_dependencies
+  fi
+
+  if ! command -v gh &>/dev/null; then
+    RELEASE_CAN_DELETE=0
+    echo "gh CLI is not available. Skipping release deletion."
+    return
   fi
 
   if ! gh auth status &>/dev/null; then
@@ -76,7 +83,7 @@ function setup_gh() {
   fi
   if ! gh repo view $REPO_PFEX &>/dev/null; then
     echo "Repository $REPO_PFEX does not exist or you do not have access."
-    exit 1
+    RELEASE_CAN_DELETE=0
   fi
 }
 
@@ -165,6 +172,8 @@ function git_handle_push() {
   TAGS_TO_DELETE=$(git tag --sort=-v:refname | tail -n +${REMAIN_VERSION} | tr '\n' ' ')
   echo "Tags to delete: ${TAGS_TO_DELETE/\n/, }"
 
+  setup_gh
+
   for TAG in $TAGS_TO_DELETE; do
     echo "Deleting tag: $TAG"
 
@@ -174,8 +183,14 @@ function git_handle_push() {
     # 删除远程 tag
     git push origin ":refs/tags/$TAG"
 
-    # 删除 GitHub release（需要 gh CLI）
-    gh release delete "$TAG" --yes || echo "Release $TAG not found or already deleted"
+    if [[ $RELEASE_CAN_DELETE -eq 0 ]]; then
+      echo "Skipping release deletion for tag: $TAG"
+      continue
+    else
+      # 删除 GitHub release（需要 gh CLI）
+      gh release delete "$TAG" --yes || echo "Release $TAG not found or already deleted"
+    fi
+
   done
 
   # git add . \
@@ -207,4 +222,3 @@ handle_input() {
 
 trap '' SIGINT
 handle_input "$@"
-
