@@ -162,8 +162,8 @@ function git_handle_push() {
   local netx_version_no=${NEXT_VERSION//v/}
 
   # 保留前3个最新 tag（按版本号降序）
-  TAGS_TO_DELETE=$(git tag --sort=-v:refname | tail -n +${REMAIN_VERSION})
-  echo "Tags to delete: $TAGS_TO_DELETE"
+  TAGS_TO_DELETE=$(git tag --sort=-v:refname | tail -n +${REMAIN_VERSION} | tr '\n' ' ')
+  echo "Tags to delete: ${TAGS_TO_DELETE/\n/, }"
 
   for TAG in $TAGS_TO_DELETE; do
     echo "Deleting tag: $TAG"
@@ -205,4 +205,6 @@ handle_input() {
   fi
 }
 
+trap '' SIGINT
 handle_input "$@"
+
