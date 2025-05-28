@@ -40,8 +40,16 @@ jobs:
       #  # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       #  run: ctest -C ${{env.BUILD_TYPE}}
 
-      - name: Create Release
-        uses: ncipollo/release-action@v1.14.0
-        with:
-          artifacts: ${{github.workspace}}/build/lib/libutils.a
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Create Release
+      #   uses: ncipollo/release-action@v1.14.0
+      #   with:
+      #     artifacts: ${{github.workspace}}/build/lib/libutils.a
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release
+        run: |
+          echo ${{secrets.GITHUB_TOKEN}} |  gh auth login --with-token
+          tag_name=$(git tag --sort=-v:refname | head -n1)
+          gh release create $tag_name ${{github.workspace}}/build/lib/libutils.a  --title "Release of $tag_name"
+
+
