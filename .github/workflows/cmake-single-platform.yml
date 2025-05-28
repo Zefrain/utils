@@ -51,5 +51,6 @@ jobs:
           echo ${{secrets.GITHUB_TOKEN}} |  gh auth login --with-token
           tag_name=$(git tag --sort=-v:refname | head -n1)
           gh release create $tag_name ${{github.workspace}}/build/lib/libutils.a  --title "Release of $tag_name"
+        
 
 
