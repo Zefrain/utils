@@ -160,11 +160,10 @@ function git_handle_ready() {
 function git_handle_push() {
   local current_version_no=${CURRENT_VERSION//v/}
   local netx_version_no=${NEXT_VERSION//v/}
-  local pre_del_version_no=$(get_pre_del_version_no "$current_version_no")
-  echo "Pre Del Version With v"${pre_del_version_no}
 
   # 保留前3个最新 tag（按版本号降序）
   TAGS_TO_DELETE=$(git tag --sort=-v:refname | tail -n +${REMAIN_VERSION})
+  echo "Tags to delete: $TAGS_TO_DELETE"
 
   for TAG in $TAGS_TO_DELETE; do
     echo "Deleting tag: $TAG"
