@@ -182,7 +182,6 @@ function git_handle_push() {
   # git add . \
   git add -u &&
     git commit -m "Update v${netx_version_no}" &&
-    git push --delete origin latest &&
     git tag v$netx_version_no &&
     git tag -f latest v$netx_version_no &&
     git push --tags -f
