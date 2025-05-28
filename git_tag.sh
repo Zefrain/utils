@@ -88,7 +88,7 @@ function git_handle_push() {
   local current_version_no=${CURRENT_VERSION//v/}
   local netx_version_no=${NEXT_VERSION//v/}
   local pre_del_version_no=$(get_pre_del_version_no "$current_version_no")
-  echo "Pre Del Version With v"${pre_del_version_no}
+  echo "Pre Del Version With "${pre_del_version_no}
 
   # git add . \
   git add -u &&
@@ -99,7 +99,7 @@ function git_handle_push() {
     git tag -f latest v$netx_version_no &&
     git push origin v$netx_version_no &&
     git push origin latest &&
-    git tag -d v$pre_del_version_no
+    git tag --sort=-v:refname | tail -n +${{REMAIN_VERSION}} | xargs -r -I {} git push origin --delete {}
 }
 
 handle_input() {
