@@ -73,7 +73,7 @@ install_dependencies() {
     return 1
   fi
 
-  if command -v npm &>/dev/null; then
+  if command -v nvm &>/dev/null; then
     npm install -g semver || {
       echo "Failed to install semver using nvm. Please install it manually."
       return 1
@@ -128,7 +128,7 @@ bump_version() {
 
   # Bump version using semver-tool if available
   if command -v semver &>/dev/null; then
-    NEXT_VERSION=$(semver bump "$BUMP_TYPE" "${CURRENT_VERSION#v}")
+    NEXT_VERSION="v$(semver bump "$BUMP_TYPE" "${CURRENT_VERSION#v}")"
   else
     # Fallback version bump logic
     IFS='.' read -ra PARTS <<<"${CURRENT_VERSION#v}"
