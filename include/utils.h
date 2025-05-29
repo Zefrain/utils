@@ -122,10 +122,10 @@ bool match_string(const char *resp, const char *pattern);
 bool do_program(const char *url, const char *progname);
 
 #define set_error_msg(fmt, ...)                                                \
-	snprintf(error_msg,                                                    \
-	         sizeof(error_msg),                                            \
-	         "[%s] " fmt,                                                  \
-	         __FUNCTION__,                                                 \
+	snprintf(error_msg,                                                          \
+	         sizeof(error_msg),                                                  \
+	         "[%s] " fmt,                                                        \
+	         __FUNCTION__,                                                       \
 	         ##__VA_ARGS__)
 
 /**
