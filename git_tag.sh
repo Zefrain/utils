@@ -2,17 +2,17 @@
 
 readonly REMAIN_VERSION=3 # 保留最新的版本数
 
-declare OS_TYPE="Unknown"
+declare OSTYPE="Unknown"
 declare RELEASE_CAN_DELETE=1 # 是否可以删除旧版本的 tag 和 release
 
 get_os_type() {
   uNames=$(uname -s)
   osName=${uNames:0:4}
-  if [ "$osName" == "Darw" ]; then # Darwin
+  if [ "$osName" = "Darw" ]; then # Darwin
     OSTYPE="Darwin"
-  elif [ "$osName" == "Linu" ]; then # Linux
+  elif [ "$osName" = "Linu" ]; then # Linux
     OSTYPE="Linux"
-  elif [ "$osName" == "MING" ]; then # MINGW, windows, git-bash
+  elif [ "$osName" = "MING" ]; then # MINGW, windows, git-bash
     OSTYPE="Windows"
   else
     OSTYPE="Unknown"
@@ -139,7 +139,7 @@ bump_version() {
   # Create new git tag
   # git tag -a "$NEW_VERSION" -m "Version $NEW_VERSION"
 
-  echo $NEW_VERSION
+  echo "$NEW_VERSION"
 }
 
 remove_old_version() {
@@ -148,8 +148,8 @@ remove_old_version() {
     return
   fi
 
-  TAGS_TO_DELETE=$(git tag --sort=-v:refname | tail -n +${REMAIN_VERSION} | tr '\n' ' ')
-  echo "Tags to delete: ${TAGS_TO_DELETE/\n/, }"
+  TAGS_TO_DELETE=$(git tag --sort=-v:refname | tail -n +$((REMAIN_VERSION + 1)) | tr '\n' ' ')
+  echo "Tags to delete: ${TAGS_TO_DELETE// /, }"
 
   for TAG in $TAGS_TO_DELETE; do
     echo "Deleting tag: $TAG"
@@ -186,10 +186,10 @@ git_handle_version() {
     return 1
   }
 
-  git push && git push --tags -f || {
+  if ! git push || ! git push --tags -f; then
     echo "Failed to push tags. Exiting."
     return 1
-  }
+  fi
 }
 
 main() {
