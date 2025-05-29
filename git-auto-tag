@@ -163,9 +163,6 @@ bump_version() {
     NEXT_VERSION="v$MAJOR.$MINOR.$PATCH"
   fi
 
-  # Update version in package.json (example)
-  # sed -i "s/\"version\": \".*\"/\"version\": \"${NEXT_VERSION#v}\"/" package.json
-
   echo "$NEXT_VERSION"
 }
 
@@ -180,9 +177,6 @@ remove_old_version() {
     # 删除本地 tag
     git tag -d "$TAG"
 
-    # # 删除远程 tag
-    # git push origin ":refs/tags/$TAG"
-    #
     if [[ $RELEASE_CAN_DELETE -eq 0 ]]; then
       echo "Skipping release deletion for tag: $TAG"
       continue
@@ -226,4 +220,5 @@ main() {
   git_handle_version || { echo "Failed to handle versioning. Exiting."; }
 }
 
+trap '' SIGINT SIGTERM SIGHUP
 main
