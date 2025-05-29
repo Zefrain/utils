@@ -86,7 +86,6 @@ bool get_public_ipv4(char *ip_str, size_t size);
  * @return     true if the tag was successfully generated, false otherwise.
  */
 bool get_random_tag_with_public_ipv4(char *tag, size_t size);
-
 /**
  * Terminates all processes with the specified program name.
  *

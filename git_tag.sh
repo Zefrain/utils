@@ -134,13 +134,11 @@ bump_version() {
   fi
 
   # Update version in package.json (example)
-  sed -i "s/\"version\": \".*\"/\"version\": \"${NEW_VERSION#v}\"/" package.json
+  # sed -i "s/\"version\": \".*\"/\"version\": \"${NEW_VERSION#v}\"/" package.json
 
   # Create new git tag
   # git tag -a "$NEW_VERSION" -m "Version $NEW_VERSION"
 
-  echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
-  # echo "New tag created: $NEW_VERSION"
   echo $NEW_VERSION
 }
 
@@ -179,7 +177,7 @@ git_handle_version() {
   NEXT_VERSION=$(bump_version)
 
   remove_old_version || echo "Failed to remove old versions. Exiting."
-  git tag -a "$NEXT_VERSION" -m "Version $NEXT_VERSION" || {
+  git tag "$NEXT_VERSION" || {
     echo "Failed to create new tag. Exiting."
     return 1
   }
@@ -187,7 +185,8 @@ git_handle_version() {
     echo "Failed to update latest tag. Exiting."
     return 1
   }
-  git push --tags -f || {
+
+  git push && git push --tags -f || {
     echo "Failed to push tags. Exiting."
     return 1
   }
@@ -195,7 +194,6 @@ git_handle_version() {
 
 main() {
   get_os_type
-  install_dependencies || { echo "Failed to install dependencies. Exiting."; }
   setup_github_cli || { echo "Failed to set up GitHub CLI. Exiting."; }
   git_handle_version || { echo "Failed to handle versioning. Exiting."; }
 }
