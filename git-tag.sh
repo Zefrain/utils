@@ -73,7 +73,7 @@ install_dependencies() {
     return 1
   fi
 
-  if command -v nvm &>/dev/null; then
+  if command -v npm &>/dev/null; then
     npm install -g semver || {
       echo "Failed to install semver using nvm. Please install it manually."
       return 1
@@ -88,7 +88,12 @@ setup_github_cli() {
   fi
 
   # Check if user is authenticated with GitHub CLI
-  if ! gh auth status &>/dev/null; then
+  if [[ $RELEASE_CAN_DELETE -eq 0 ]]; then
+    echo "Skipping authentication check due to previous errors."
+    return
+  fi
+
+  if RELEASE! gh auth status &>/dev/null; then
     gh auth login
   fi
   # Ensure the repository is set up correctly
