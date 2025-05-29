@@ -1,20 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+readonly REMAIN_VERSION=3 # 保留最新的版本数
 
-ProductName=utils
-Product_version_key="TheLibVersion"
-REPO_PFEX=zefrain/${ProductName}
-VersionFile=VERSION
-readonly REMAIN_VERSION=3    # 保留最新的版本数
+declare OS_TYPE="Unknown"
 declare RELEASE_CAN_DELETE=1 # 是否可以删除旧版本的 tag 和 release
 
-CURRENT_VERSION=$(grep ${Product_version_key} $VersionFile | awk -F '"' '{print $2}' | sed 's/\"//g')
-
-NEXT_VERSION=""
-
-OSTYPE="Unknown"
-GetOSType() {
+get_os_type() {
   uNames=$(uname -s)
   osName=${uNames:0:4}
   if [ "$osName" == "Darw" ]; then # Darwin
@@ -27,9 +18,8 @@ GetOSType() {
     OSTYPE="Unknown"
   fi
 }
-GetOSType
 
-function install_dependencies() {
+install_dependencies() {
   if [ "$OSTYPE" == "Darwin" ]; then
     if ! command -v brew &>/dev/null; then
       echo "Homebrew is not installed. Please install it from https://brew.sh/."
@@ -43,136 +33,125 @@ function install_dependencies() {
     if [[ "$ID" == "ubuntu" || "$ID" == "debian" ]]; then
       sudo apt-get update
       sudo apt-get install -y gh
-    elif [[ "$ID" == "fedora" || "$ID" == "centos" ]]; then
-      sudo dnf install -y gh || sudo yum install -y gh
+      if command -v dnf &>/dev/null; then
+        sudo dnf install -y gh
+      elif command -v yum &>/dev/null; then
+        sudo yum install -y gh
+      else
+        echo "Neither dnf nor yum found. Cannot install gh."
+        return 1
+      fi
     elif [[ "$ID" == "arch" ]]; then
       sudo pacman -S --noconfirm gh
     else
       echo "Unsupported Linux distribution: $ID"
-      exit 1
+      return 1
     fi
 
     if ! command -v gh &>/dev/null; then
       echo "gh CLI is not installed. Please install it using your package manager."
-      exit 1
+      return 1
     fi
   elif [ "$OSTYPE" == "Windows" ]; then
     echo "Please install GitHub CLI from https://cli.github.com/."
-    exit 1
+    return 1
   else
     echo "Unsupported OS type: $OSTYPE"
-    exit 1
-  fi
-}
-
-function setup_gh() {
-  if ! command -v gh &>/dev/null; then
-    echo "gh CLI is not installed. Please install it from https://cli.github.com/."
-    install_dependencies
-  fi
-
-  if ! command -v gh &>/dev/null; then
-    RELEASE_CAN_DELETE=0
-    echo "gh CLI is not available. Skipping release deletion."
-    return
-  fi
-
-  if ! gh auth status &>/dev/null; then
-    echo "You need to authenticate with GitHub CLI."
-    gh auth login
-  fi
-  if ! gh repo view $REPO_PFEX &>/dev/null; then
-    echo "Repository $REPO_PFEX does not exist or you do not have access."
-    RELEASE_CAN_DELETE=0
-  fi
-}
-
-function to_run() {
-  if [ -z "$1" ]; then
-    baseStr=$(echo ${CURRENT_VERSION} | cut -d'.' -f1) # Get the base version (v0)
-    base=${baseStr//v/}                                # Get the base version (0)
-    major=$(echo ${CURRENT_VERSION} | cut -d'.' -f2)   # Get the major version (0)
-    minor=$(echo ${CURRENT_VERSION} | cut -d'.' -f3)   # Get the minor version (1)
-
-    minor=$((minor + 1))       # Increment the minor version
-    if ((minor == 1000)); then # Check if minor version is 1000
-      minor=0                  # Reset minor version to 0
-      major=$((major + 1))     # Increment major version
-    fi
-
-    if ((major == 1000)); then # Check if major version is 1000
-      major=0                  # Reset major version to 0
-      base=$((base + 1))       # Increment base version
-    fi
-
-    NEXT_VERSION="v${base}.${major}.${minor}"
-    return 0
-  elif [ "$1" == "custom" ]; then
-    echo "============================ ${ProductName} ============================"
-    echo "  1、发布 [-${ProductName}-]"
-    echo "  当前版本[-${CURRENT_VERSION}-]"
-    echo "======================================================================"
-    read -p "$(echo -e "请输入版本号[例如；v0.0.1]")" inputString
-    if [[ "$inputString" =~ ^v.* ]]; then
-      NEXT_VERSION=${inputString}
-    else
-      NEXT_VERSION=v${inputString}
-    fi
-    return 0
-  else
     return 1
   fi
 }
 
-function get_pre_del_version_no {
-  local v_str=$1
-  baseStr=$(echo $v_str | cut -d'.' -f1) # Get the base version (v0)
-  base=${baseStr//v/}                    # Get the base version (0)
-  major=$(echo $v_str | cut -d'.' -f2)   # Get the major version (0)
-  minor=$(echo $v_str | cut -d'.' -f3)   # Get the minor version (1)
+setup_github_cli() {
+  if ! command -v gh &>/dev/null; then
+    echo "gh CLI is not installed. Please install it from https://cli.github.com/."
+    install_dependencies || echo "Failed to install dependencies. Please install gh CLI manually." && RELEASE_CAN_DELETE=0
+  fi
 
-  if ((minor > 0)); then # Check if minor version is more than 0
-    minor=$((minor - 1)) # Decrement the minor version
+  # Check if user is authenticated with GitHub CLI
+  if ! gh auth status &>/dev/null; then
+    gh auth login
+  fi
+  # Ensure the repository is set up correctly
+  if ! gh repo view &>/dev/null; then
+    echo "This script must be run in a valid GitHub repository."
+    RELEASE_CAN_DELETE=0
+  fi
+}
+
+bump_version() {
+
+  # Get latest semantic version tag
+  LAST_TAG=$(git describe --tags --match "v*" --abbrev=0 2>/dev/null)
+
+  # Set initial version if no tags exist
+  if [ -z "$LAST_TAG" ]; then
+    CURRENT_VERSION="v0.0.0"
   else
-    minor=999              # Reset minor version to 999
-    if ((major > 0)); then # Check if major version is more than 0
-      major=$((major - 1)) # Decrement major version
-    else
-      major=999             # Reset major version to 999
-      if ((base > 0)); then # Check if base version is more than 0
-        base=$((base - 1))  # Decrement base version
-      else
-        echo "Error: Version cannot be decremented."
-        exit 1
-      fi
+    CURRENT_VERSION="$LAST_TAG"
+  fi
+
+  # Analyze commit messages since last tag
+  COMMITS_SINCE_TAG=$(git log --pretty=format:"%s" "$CURRENT_VERSION"..HEAD)
+
+  # Determine version bump type
+  BUMP_TYPE="patch"
+  while IFS= read -r commit_msg; do
+    if [[ "$commit_msg" =~ ^BREAKING\ CHANGE: ]]; then
+      BUMP_TYPE="major"
+      break
+    elif [[ "$commit_msg" =~ ^feat: ]]; then
+      BUMP_TYPE="minor"
+    elif [[ "$commit_msg" =~ ^(fix|docs|style|refactor|perf|test|chore): ]] && [ "$BUMP_TYPE" != "minor" ]; then
+      BUMP_TYPE="patch"
     fi
+  done <<<"$COMMITS_SINCE_TAG"
+
+  # Bump version using semver-tool if available
+  if command -v semver &>/dev/null; then
+    NEW_VERSION=$(semver bump "$BUMP_TYPE" "${CURRENT_VERSION#v}")
+  else
+    # Fallback version bump logic
+    IFS='.' read -ra PARTS <<<"${CURRENT_VERSION#v}"
+    MAJOR=${PARTS[0]}
+    MINOR=${PARTS[1]}
+    PATCH=${PARTS[2]}
+
+    case "$BUMP_TYPE" in
+    "major")
+      MAJOR=$((MAJOR + 1))
+      MINOR=0
+      PATCH=0
+      ;;
+    "minor")
+      MINOR=$((MINOR + 1))
+      PATCH=0
+      ;;
+    "patch")
+      PATCH=$((PATCH + 1))
+      ;;
+    esac
+    NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
   fi
 
-  pre_v_no="${base}.${major}.${minor}"
-  echo $pre_v_no
+  # Update version in package.json (example)
+  sed -i "s/\"version\": \".*\"/\"version\": \"${NEW_VERSION#v}\"/" package.json
+
+  # Create new git tag
+  # git tag -a "$NEW_VERSION" -m "Version $NEW_VERSION"
+
+  echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION"
+  # echo "New tag created: $NEW_VERSION"
+  echo $NEW_VERSION
 }
 
-function git_handle_ready() {
-  echo "Current Version With "${CURRENT_VERSION}
-  echo "Next Version With "${NEXT_VERSION}
-
-  sed -i -e "s/\(${Product_version_key}[[:space:]]*\"\)${CURRENT_VERSION}\"/\1${NEXT_VERSION}\"/" $VersionFile
-
-  if [[ $OSTYPE == "Darwin" ]]; then
-    echo "rm darwin cache"
-    rm -rf $VersionFile"-e"
+remove_old_version() {
+  if [ $RELEASE_CAN_DELETE -eq 0 ]; then
+    echo "Skipping old version deletion due to previous errors."
+    return
   fi
-}
 
-function git_handle_push() {
-  local current_version_no=${CURRENT_VERSION//v/}
-  local netx_version_no=${NEXT_VERSION//v/}
-
-  # 保留前3个最新 tag（按版本号降序）
   TAGS_TO_DELETE=$(git tag --sort=-v:refname | tail -n +${REMAIN_VERSION} | tr '\n' ' ')
   echo "Tags to delete: ${TAGS_TO_DELETE/\n/, }"
-
-  setup_gh
 
   for TAG in $TAGS_TO_DELETE; do
     echo "Deleting tag: $TAG"
@@ -192,33 +171,33 @@ function git_handle_push() {
     fi
 
   done
-
-  # git add . \
-  git add -u &&
-    git commit -m "Update v${netx_version_no}" &&
-    git tag v$netx_version_no &&
-    git tag -f latest v$netx_version_no &&
-    git push --tags -f
-
+  echo "Old versions deleted successfully."
 }
 
-handle_input() {
-  if [[ $1 == "-get_pre_del_tag_name" ]]; then
-    pre_tag=$(get_pre_del_version_no "${CURRENT_VERSION}")
-    echo $pre_tag
-  elif [ -z "$1" ] || [ "$1" == "auto" ]; then
+git_handle_version() {
+  # Bump version and get new version number
+  NEXT_VERSION=$(bump_version)
 
-    if to_run "$1"; then
-      git_handle_ready
-      git_handle_push
-      echo "Complated"
-    else
-      echo "Invalid argument normal"
-    fi
-  else
-    echo "Invalid argument"
-  fi
+  remove_old_version || echo "Failed to remove old versions. Exiting."
+  git tag -a "$NEXT_VERSION" -m "Version $NEXT_VERSION" || {
+    echo "Failed to create new tag. Exiting."
+    return 1
+  }
+  git tag -f latest "$NEXT_VERSION" || {
+    echo "Failed to update latest tag. Exiting."
+    return 1
+  }
+  git push --tags -f || {
+    echo "Failed to push tags. Exiting."
+    return 1
+  }
 }
 
-trap '' SIGINT
-handle_input "$@"
+main() {
+  get_os_type
+  install_dependencies || { echo "Failed to install dependencies. Exiting."; }
+  setup_github_cli || { echo "Failed to set up GitHub CLI. Exiting."; }
+  git_handle_version || { echo "Failed to handle versioning. Exiting."; }
+}
+
+main
